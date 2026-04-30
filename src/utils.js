@@ -60,27 +60,31 @@ export function calcSpecialOddYesNo(baseOdd, houseMarg) {
 
 /**
  * Genera opcions per a apostes de rang numèric.
- * n: nombre total d'opcions (últim és "N+")
+ * n: nombre total d'opcions (últim és "N+" o "N o més")
  * best: índex base-0 del valor més probable
  * baseOdd: quota central (sense marge)
  * discrepancy: factor de pujada per posició allunyada del centre
  * houseMarg: % marge de la casa
+ * start: número inicial del rang (per defecte 1)
+ * exact: si true, les etiquetes són exactes (0, 1, 2...); si false, l'última és "N+" (per defecte false)
  */
-export function generateRangeOptions(n, best, baseOdd, discrepancy, houseMarg) {
+export function generateRangeOptions(n, best, baseOdd, discrepancy, houseMarg, start = 1, exact = false) {
   const opts = [];
   for (let i = 0; i < n; i++) {
+    const val = start + i;
     const dist = Math.abs(i - best);
     const rawOdd = baseOdd * Math.pow(discrepancy, dist);
     const finalOdd = Math.max(1.01, Math.round(rawOdd * (1 - houseMarg / 100) * 100) / 100);
-    const label = i === n - 1 ? `${i + 1}+` : `${i + 1}`;
+    const isLast = i === n - 1;
+    const label = isLast && !exact ? `${val}+` : `${val}`;
     opts.push({ label, odd: finalOdd });
   }
   return opts;
 }
 
 // Alias convenient per a l'admin
-export function buildRangeOptions(n, best, baseOdd, discrepancy, houseMarg) {
-  return generateRangeOptions(n, best, baseOdd, discrepancy, houseMarg);
+export function buildRangeOptions(n, best, baseOdd, discrepancy, houseMarg, start = 1, exact = false) {
+  return generateRangeOptions(n, best, baseOdd, discrepancy, houseMarg, start, exact);
 }
 
 // ── Betslip resolution ───────────────────────────────────────────
