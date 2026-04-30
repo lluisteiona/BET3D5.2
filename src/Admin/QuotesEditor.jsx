@@ -22,8 +22,10 @@ export function QuotesEditor({ bet, collaKey, label, tipus, HOUSE_MARG, updateBe
   const rangBest = isGlobal ? (bet._rangBest ?? 2) : (cfg._rangBest ?? bet._rangBest ?? 2);
   const rangBase = isGlobal ? (bet._rangBase ?? 1.6) : (cfg._rangBase ?? bet._rangBase ?? 1.6);
   const rangDisc = isGlobal ? (bet._rangDisc ?? 1.6) : (cfg._rangDisc ?? bet._rangDisc ?? 1.6);
+  const rangStart = isGlobal ? (bet._rangStart ?? 1) : (cfg._rangStart ?? bet._rangStart ?? 1);
+  const rangExact = isGlobal ? (bet._rangExact ?? false) : (cfg._rangExact ?? bet._rangExact ?? false);
 
-  const previewOpts = tipus === 'range' ? buildRangeOptions(rangN, rangBest, rangBase, rangDisc, HOUSE_MARG) : [];
+  const previewOpts = tipus === 'range' ? buildRangeOptions(rangN, rangBest, rangBase, rangDisc, HOUSE_MARG, rangStart, rangExact) : [];
 
   return (
     <div style={{ background: 'var(--bg4)', border: `1px solid ${isGlobal ? 'var(--border)' : 'rgba(168,85,247,.3)'}`, borderRadius: 6, padding: '10px 12px' }}>
@@ -84,6 +86,28 @@ export function QuotesEditor({ bet, collaKey, label, tipus, HOUSE_MARG, updateBe
                 onChange={e => setField('_rangDisc', parseFloat(e.target.value) || 1.6)}
                 onBlur={() => isGlobal ? recalcRange(bet.id) : recalcRange(bet.id, collaKey)}
                 style={{ width: '100%' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '.6rem', color: 'var(--text-dim)', display: 'block', marginBottom: 3, fontFamily: "'Barlow Condensed'" }}>NÚMERO INICIAL</label>
+              <input type="number" min={0} value={rangStart}
+                onChange={e => setField('_rangStart', parseInt(e.target.value) ?? 1)}
+                onBlur={() => isGlobal ? recalcRange(bet.id) : recalcRange(bet.id, collaKey)}
+                style={{ width: '100%' }} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+              <label style={{ fontSize: '.6rem', color: 'var(--text-dim)', display: 'block', marginBottom: 3, fontFamily: "'Barlow Condensed'" }}>ÚLTIMA OPCIÓ</label>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[false, true].map(val => (
+                  <button key={String(val)}
+                    onClick={() => {
+                      setField('_rangExact', val);
+                      setTimeout(() => isGlobal ? recalcRange(bet.id) : recalcRange(bet.id, collaKey), 0);
+                    }}
+                    style={{ flex: 1, cursor: 'pointer', border: `1px solid ${rangExact === val ? 'var(--green)' : 'var(--border)'}`, borderRadius: 4, padding: '4px 6px', background: rangExact === val ? 'rgba(0,208,75,.12)' : 'var(--bg3)', color: rangExact === val ? 'var(--green)' : 'var(--text-dim)', fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.65rem' }}>
+                    {val ? `Exacte` : `${rangStart + rangN - 1}+`}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           <button
