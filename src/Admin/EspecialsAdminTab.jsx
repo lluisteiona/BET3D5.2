@@ -26,12 +26,6 @@ export function EspecialsAdminTab({ diades, onToast }) {
   const [rBest, setRBest] = useState(2);
   const [rBase, setRBase] = useState(1.6);
   const [rDisc, setRDisc] = useState(1.6);
-  const [rStart, setRStart] = useState(1);
-  const [rExact, setRExact] = useState(false);
-  const [rStep, setRStep] = useState(1);
-  // ── NOU: mode "o superior" i pendent exponencial ──
-  const [rOrSup, setROrSup] = useState(false);   // totes les opcions amb "o sup."
-  const [rExpSlope, setRExpSlope] = useState(1.0); // pendent exponencial (1 = lineal)
   // Config yesno
   const [ynSiOdd, setYnSiOdd] = useState(1.8);
   const [ynNoOdd, setYnNoOdd] = useState(1.8);
@@ -62,7 +56,7 @@ export function EspecialsAdminTab({ diades, onToast }) {
         { label: 'No', odd: Math.max(1.01, Math.round(ynNoOdd * (1 - HOUSE_MARG / 100) * 100) / 100) },
       ];
     }
-    return buildRangeOptions(rN, rBest, rBase, rDisc, HOUSE_MARG, rStart, rExact, rStep, rOrSup, rExpSlope);
+    return buildRangeOptions(rN, rBest, rBase, rDisc, HOUSE_MARG);
   };
 
   const addBet = () => {
@@ -78,8 +72,6 @@ export function EspecialsAdminTab({ diades, onToast }) {
       colla: addAmbit === 'colla_especifica' ? addColla : null,
       options: buildOptions(),
       _rangN: rN, _rangBest: rBest, _rangBase: rBase, _rangDisc: rDisc,
-      _rangStart: rStart, _rangExact: rExact, _rangStep: rStep,
-      _rangOrSup: rOrSup, _rangExpSlope: rExpSlope,
       _ynSi: ynSiOdd, _ynNo: ynNoOdd,
     };
     const newBets = [...bets, newBet];
@@ -100,25 +92,10 @@ export function EspecialsAdminTab({ diades, onToast }) {
       if (b.id !== id) return b;
       if (collaKey) {
         const cfg = b._collasCfg?.[collaKey] || {};
-        const opts = buildRangeOptions(
-          cfg._rangN ?? b._rangN ?? 5,
-          cfg._rangBest ?? b._rangBest ?? 2,
-          cfg._rangBase ?? b._rangBase ?? 1.6,
-          cfg._rangDisc ?? b._rangDisc ?? 1.6,
-          HOUSE_MARG,
-          cfg._rangStart ?? b._rangStart ?? 1,
-          cfg._rangExact ?? b._rangExact ?? false,
-          cfg._rangStep ?? b._rangStep ?? 1,
-          cfg._rangOrSup ?? b._rangOrSup ?? false,
-          cfg._rangExpSlope ?? b._rangExpSlope ?? 1.0,
-        );
+        const opts = buildRangeOptions(cfg._rangN ?? b._rangN ?? 5, cfg._rangBest ?? b._rangBest ?? 2, cfg._rangBase ?? b._rangBase ?? 1.6, cfg._rangDisc ?? b._rangDisc ?? 1.6, HOUSE_MARG);
         return { ...b, collesOpts: { ...(b.collesOpts || {}), [collaKey]: opts } };
       }
-      const opts = buildRangeOptions(
-        b._rangN || 5, b._rangBest ?? 2, b._rangBase || 1.6, b._rangDisc || 1.6,
-        HOUSE_MARG, b._rangStart ?? 1, b._rangExact ?? false, b._rangStep ?? 1,
-        b._rangOrSup ?? false, b._rangExpSlope ?? 1.0,
-      );
+      const opts = buildRangeOptions(b._rangN || 5, b._rangBest ?? 2, b._rangBase || 1.6, b._rangDisc || 1.6, HOUSE_MARG);
       return { ...b, options: opts };
     }));
   };
@@ -149,9 +126,7 @@ export function EspecialsAdminTab({ diades, onToast }) {
     }));
   };
 
-  const previewOpts = addTipus === 'range'
-    ? buildRangeOptions(rN, rBest, rBase, rDisc, HOUSE_MARG, rStart, rExact, rStep, rOrSup, rExpSlope)
-    : [];
+  const previewOpts = addTipus === 'range' ? buildRangeOptions(rN, rBest, rBase, rDisc, HOUSE_MARG) : [];
 
   return (
     <div>
@@ -273,59 +248,6 @@ export function EspecialsAdminTab({ diades, onToast }) {
                     <label style={{ fontSize: '.65rem', color: 'var(--text-dim)', display: 'block', marginBottom: 4, fontFamily: "'Barlow Condensed'" }}>DISCREPÀNCIA (×{rDisc} per cada posició)</label>
                     <input type="number" min={1.0} max={5} step={0.05} value={rDisc} onChange={e => setRDisc(parseFloat(e.target.value) || 1.5)} style={{ width: '100%' }} />
                   </div>
-                  <div>
-                    <label style={{ fontSize: '.65rem', color: 'var(--text-dim)', display: 'block', marginBottom: 4, fontFamily: "'Barlow Condensed'" }}>NÚMERO INICIAL DEL RANG</label>
-                    <input type="number" min={0} value={rStart} onChange={e => setRStart(parseInt(e.target.value) ?? 1)} style={{ width: '100%' }} />
-                  </div>
-                  {/* ── NOU: Pas del rang ── */}
-                  <div>
-                    <label style={{ fontSize: '.65rem', color: 'var(--accent)', display: 'block', marginBottom: 4, fontFamily: "'Barlow Condensed'" }}>PAS (salt entre opcions)</label>
-                    <input type="number" min={1} step={1} value={rStep} onChange={e => setRStep(Math.max(1, parseInt(e.target.value) || 1))} style={{ width: '100%' }} />
-                    <div style={{ fontSize: '.62rem', color: 'var(--text-muted)', marginTop: 2, fontFamily: "'Barlow Condensed'" }}>
-                      Ex: pas=100 → {rStart}, {rStart + 100}, {rStart + 200}…
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                    <label style={{ fontSize: '.65rem', color: 'var(--text-dim)', display: 'block', marginBottom: 4, fontFamily: "'Barlow Condensed'" }}>ÚLTIMA OPCIÓ</label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {[false, true].map(val => (
-                        <button key={String(val)} onClick={() => setRExact(val)} style={{ flex: 1, cursor: 'pointer', border: `1px solid ${rExact === val ? 'var(--green)' : 'var(--border)'}`, borderRadius: 4, padding: '6px 8px', background: rExact === val ? 'rgba(0,208,75,.12)' : 'var(--bg3)', color: rExact === val ? 'var(--green)' : 'var(--text-dim)', fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.72rem' }}>
-                          {val ? `Exacte (${rStart + (rN - 1) * rStep})` : `${rStart + (rN - 1) * rStep}+ (o més)`}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {/* ── NOU: Mode "o superior" per a totes ── */}
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <label style={{ fontSize: '.65rem', color: 'var(--text-dim)', display: 'block', marginBottom: 4, fontFamily: "'Barlow Condensed'", textTransform: 'uppercase' }}>Mode "o superior"</label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      {[false, true].map(val => (
-                        <button key={String(val)} onClick={() => setROrSup(val)}
-                          style={{ flex: 1, cursor: 'pointer', border: `1px solid ${rOrSup === val ? 'var(--gold)' : 'var(--border)'}`, borderRadius: 4, padding: '6px 8px', background: rOrSup === val ? 'rgba(255,196,0,.1)' : 'var(--bg3)', color: rOrSup === val ? 'var(--gold)' : 'var(--text-dim)', fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.72rem' }}>
-                          {val ? '✓ Totes "o superior" (acumulatiu)' : 'Normal (opcions exactes)'}
-                        </button>
-                      ))}
-                    </div>
-                    {rOrSup && (
-                      <div style={{ marginTop: 6, fontSize: '.68rem', color: 'var(--gold)', background: 'rgba(255,196,0,.07)', borderRadius: 4, padding: '5px 8px', fontFamily: "'Barlow Condensed'" }}>
-                        ⚡ Cada opció representa "{rStart}+", "{rStart + rStep}+", etc. Les quotes s'apliquen amb curvatura exponencial.
-                      </div>
-                    )}
-                  </div>
-                  {/* ── NOU: Pendent exponencial (només si or-sup actiu) ── */}
-                  {rOrSup && (
-                    <div style={{ gridColumn: '1 / -1' }}>
-                      <label style={{ fontSize: '.65rem', color: 'var(--gold)', display: 'block', marginBottom: 4, fontFamily: "'Barlow Condensed'", textTransform: 'uppercase' }}>
-                        Pendent exponencial: {rExpSlope.toFixed(2)}
-                      </label>
-                      <input type="range" min={0.5} max={3.0} step={0.05} value={rExpSlope}
-                        onChange={e => setRExpSlope(parseFloat(e.target.value))}
-                        style={{ width: '100%', accentColor: 'var(--gold)' }} />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.6rem', color: 'var(--text-muted)', fontFamily: "'Barlow Condensed'" }}>
-                        <span>0.5 (suau)</span><span>1.0 (lineal)</span><span>3.0 (molt pronunciat)</span>
-                      </div>
-                    </div>
-                  )}
                 </div>
                 <div style={{ fontSize: '.65rem', color: 'var(--text-dim)', fontFamily: "'Barlow Condensed'", textTransform: 'uppercase', marginBottom: 6 }}>Previsualització de quotes (amb {HOUSE_MARG}% marge)</div>
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
