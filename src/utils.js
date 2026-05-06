@@ -60,31 +60,73 @@ export function calcSpecialOddYesNo(baseOdd, houseMarg) {
 
 /**
  * Genera opcions per a apostes de rang numèric.
- * n: nombre total d'opcions (últim és "N+" o "N o més")
- * best: índex base-0 del valor més probable
- * baseOdd: quota central (sense marge)
- * discrepancy: factor de pujada per posició allunyada del centre
- * houseMarg: % marge de la casa
- * start: número inicial del rang (per defecte 1)
- * exact: si true, les etiquetes són exactes (0, 1, 2...); si false, l'última és "N+" (per defecte false)
+ *
+ * @param {number}  n            Nombre total d'opcions
+ * @param {number}  best         Índex base-0 del valor més probable
+ * @param {number}  baseOdd      Quota central (sense marge)
+ * @param {number}  discrepancy  Factor de pujada per posició allunyada del centre
+ * @param {number}  houseMarg    % marge de la casa
+ * @param {number}  start        Número inicial del rang (default 1)
+ * @param {boolean} exact        Si true, l'última etiqueta és exacta; si false, "N+" (default false)
+ * @param {number}  step         Salt entre opcions (default 1). Ex: 100 → 100, 200, 300…
+ * @param {boolean} orSup        Si true, totes les opcions s'etiqueten com "N+" i les quotes
+ *                               s'apliquen amb curvatura exponencial ascendent (default false)
+ * @param {number}  expSlope     Pendent de la corba exponencial quan orSup=true (default 1.0)
+ *                               1.0 = lineal, >1 = creix més ràpid, <1 = creix més suau
  */
-export function generateRangeOptions(n, best, baseOdd, discrepancy, houseMarg, start = 1, exact = false) {
+export function generateRangeOptions(
+  n, best, baseOdd, discrepancy, houseMarg,
+  start = 1, exact = false, step = 1, orSup = false, expSlope = 1.0,
+) {
+  const marg = 1 - houseMarg / 100;
   const opts = [];
+
   for (let i = 0; i < n; i++) {
-    const val = start + i;
-    const dist = Math.abs(i - best);
-    const rawOdd = baseOdd * Math.pow(discrepancy, dist);
-    const finalOdd = Math.max(1.01, Math.round(rawOdd * (1 - houseMarg / 100) * 100) / 100);
+    const val = start + i * step;
     const isLast = i === n - 1;
-    const label = isLast && !exact ? `${val}+` : `${val}`;
+
+    let finalOdd;
+    let label;
+
+    if (orSup) {
+      // Mode "o superior": quotes creixen exponencialment per valors alts
+      // (apostar "100 o més" és molt probable → quota baixa;
+      //  apostar "500 o més" és poc probable → quota alta)
+      const dist = i - best;
+      const raw = dist >= 0
+        ? baseOdd * Math.pow(discrepancy, Math.pow(Math.abs(dist), expSlope))
+        : baseOdd / Math.pow(discrepancy, Math.pow(Math.abs(dist), expSlope));
+      finalOdd = Math.max(1.01, Math.round(raw * marg * 100) / 100);
+      // Totes les opcions s'etiqueten "N+" excepte l'última si exact=true
+      label = isLast && exact ? `${val}` : `${val}+`;
+    } else {
+      // Mode normal: opcions exactes, disc. simètrica respecte al `best`
+      const dist = Math.abs(i - best);
+      const raw = baseOdd * Math.pow(discrepancy, dist);
+      finalOdd = Math.max(1.01, Math.round(raw * marg * 100) / 100);
+      label = isLast && !exact ? `${val}+` : `${val}`;
+    }
+
     opts.push({ label, odd: finalOdd });
   }
+
   return opts;
 }
 
-// Alias convenient per a l'admin
-export function buildRangeOptions(n, best, baseOdd, discrepancy, houseMarg, start = 1, exact = false) {
-  return generateRangeOptions(n, best, baseOdd, discrepancy, houseMarg, start, exact);
+// Alias per a l'admin (mateixa signatura, delega a generateRangeOptions)
+export function buildRangeOptions(
+  n         = 5,
+  best      = 2,
+  baseOdd   = 1.6,
+  disc      = 1.6,
+  houseMarg = 8,
+  start     = 1,
+  exact     = false,
+  step      = 1,
+  orSup     = false,
+  expSlope  = 1.0,
+) {
+  return generateRangeOptions(n, best, baseOdd, disc, houseMarg, start, exact, step, orSup, expSlope);
 }
 
 // ── Betslip resolution ───────────────────────────────────────────
