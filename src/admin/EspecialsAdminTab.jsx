@@ -26,6 +26,8 @@ export function EspecialsAdminTab({ diades, onToast }) {
   const [rBest, setRBest] = useState(2);
   const [rBase, setRBase] = useState(1.6);
   const [rDisc, setRDisc] = useState(1.6);
+  const [rStart, setRStart] = useState(1);
+  const [rExact, setRExact] = useState(false);
   // Config yesno
   const [ynSiOdd, setYnSiOdd] = useState(1.8);
   const [ynNoOdd, setYnNoOdd] = useState(1.8);
@@ -56,7 +58,7 @@ export function EspecialsAdminTab({ diades, onToast }) {
         { label: 'No', odd: Math.max(1.01, Math.round(ynNoOdd * (1 - HOUSE_MARG / 100) * 100) / 100) },
       ];
     }
-    return buildRangeOptions(rN, rBest, rBase, rDisc, HOUSE_MARG);
+    return buildRangeOptions(rN, rBest, rBase, rDisc, HOUSE_MARG, rStart, rExact);
   };
 
   const addBet = () => {
@@ -71,7 +73,7 @@ export function EspecialsAdminTab({ diades, onToast }) {
       perColla: addAmbit === 'per_colla',
       colla: addAmbit === 'colla_especifica' ? addColla : null,
       options: buildOptions(),
-      _rangN: rN, _rangBest: rBest, _rangBase: rBase, _rangDisc: rDisc,
+      _rangN: rN, _rangBest: rBest, _rangBase: rBase, _rangDisc: rDisc, _rangStart: rStart, _rangExact: rExact,
       _ynSi: ynSiOdd, _ynNo: ynNoOdd,
     };
     const newBets = [...bets, newBet];
@@ -92,10 +94,21 @@ export function EspecialsAdminTab({ diades, onToast }) {
       if (b.id !== id) return b;
       if (collaKey) {
         const cfg = b._collasCfg?.[collaKey] || {};
-        const opts = buildRangeOptions(cfg._rangN ?? b._rangN ?? 5, cfg._rangBest ?? b._rangBest ?? 2, cfg._rangBase ?? b._rangBase ?? 1.6, cfg._rangDisc ?? b._rangDisc ?? 1.6, HOUSE_MARG);
+        const opts = buildRangeOptions(
+          cfg._rangN ?? b._rangN ?? 5,
+          cfg._rangBest ?? b._rangBest ?? 2,
+          cfg._rangBase ?? b._rangBase ?? 1.6,
+          cfg._rangDisc ?? b._rangDisc ?? 1.6,
+          HOUSE_MARG,
+          cfg._rangStart ?? b._rangStart ?? 1,
+          cfg._rangExact ?? b._rangExact ?? false,
+        );
         return { ...b, collesOpts: { ...(b.collesOpts || {}), [collaKey]: opts } };
       }
-      const opts = buildRangeOptions(b._rangN || 5, b._rangBest ?? 2, b._rangBase || 1.6, b._rangDisc || 1.6, HOUSE_MARG);
+      const opts = buildRangeOptions(
+        b._rangN || 5, b._rangBest ?? 2, b._rangBase || 1.6, b._rangDisc || 1.6,
+        HOUSE_MARG, b._rangStart ?? 1, b._rangExact ?? false,
+      );
       return { ...b, options: opts };
     }));
   };
@@ -126,7 +139,7 @@ export function EspecialsAdminTab({ diades, onToast }) {
     }));
   };
 
-  const previewOpts = addTipus === 'range' ? buildRangeOptions(rN, rBest, rBase, rDisc, HOUSE_MARG) : [];
+  const previewOpts = addTipus === 'range' ? buildRangeOptions(rN, rBest, rBase, rDisc, HOUSE_MARG, rStart, rExact) : [];
 
   return (
     <div>
@@ -248,6 +261,20 @@ export function EspecialsAdminTab({ diades, onToast }) {
                     <label style={{ fontSize: '.65rem', color: 'var(--text-dim)', display: 'block', marginBottom: 4, fontFamily: "'Barlow Condensed'" }}>DISCREPÀNCIA (×{rDisc} per cada posició)</label>
                     <input type="number" min={1.0} max={5} step={0.05} value={rDisc} onChange={e => setRDisc(parseFloat(e.target.value) || 1.5)} style={{ width: '100%' }} />
                   </div>
+                  <div>
+                    <label style={{ fontSize: '.65rem', color: 'var(--text-dim)', display: 'block', marginBottom: 4, fontFamily: "'Barlow Condensed'" }}>NÚMERO INICIAL DEL RANG</label>
+                    <input type="number" min={0} value={rStart} onChange={e => setRStart(parseInt(e.target.value) ?? 1)} style={{ width: '100%' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                    <label style={{ fontSize: '.65rem', color: 'var(--text-dim)', display: 'block', marginBottom: 4, fontFamily: "'Barlow Condensed'" }}>ÚLTIMA OPCIÓ</label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {[false, true].map(val => (
+                        <button key={String(val)} onClick={() => setRExact(val)} style={{ flex: 1, cursor: 'pointer', border: `1px solid ${rExact === val ? 'var(--green)' : 'var(--border)'}`, borderRadius: 4, padding: '6px 8px', background: rExact === val ? 'rgba(0,208,75,.12)' : 'var(--bg3)', color: rExact === val ? 'var(--green)' : 'var(--text-dim)', fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.72rem' }}>
+                          {val ? `Exacte (${rStart + rN - 1})` : `${rStart + rN - 1}+ (o més)`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <div style={{ fontSize: '.65rem', color: 'var(--text-dim)', fontFamily: "'Barlow Condensed'", textTransform: 'uppercase', marginBottom: 6 }}>Previsualització de quotes (amb {HOUSE_MARG}% marge)</div>
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -289,7 +316,6 @@ export function EspecialsAdminTab({ diades, onToast }) {
                       {bet.perColla && <span style={{ fontSize: '.65rem', background: 'rgba(168,85,247,.2)', color: 'var(--purple)', borderRadius: 3, padding: '1px 6px', fontFamily: "'Barlow Condensed'", fontWeight: 700 }}>PER COLLA</span>}
                       {bet.colla && <span style={{ fontSize: '.7rem', color: catColor, fontFamily: "'Barlow Condensed'" }}>{bet.colla}</span>}
                       <span style={{ fontSize: '.65rem', background: catColor + '22', color: catColor, borderRadius: 3, padding: '1px 6px', fontFamily: "'Barlow Condensed'", fontWeight: 700 }}>{bet.tipus === 'yesno' ? 'SÍ/NO' : 'RANG'}</span>
-                      {bet._rangOrSup && <span style={{ fontSize: '.65rem', background: 'rgba(255,196,0,.15)', color: 'var(--gold)', borderRadius: 3, padding: '1px 6px', fontFamily: "'Barlow Condensed'", fontWeight: 700 }}>O SUP.</span>}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
