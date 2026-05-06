@@ -104,7 +104,7 @@ export function ResultatsTab({ diades, apostes, onToast }) {
 
           {/* Castells per colla */}
           <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.78rem', textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: 8 }}>Castells per colla</div>
-          {(diadaSel.colles || []).map(c => {
+          {(diadaSel?.colles || []).map(c => {
             const { castellos, pilars } = getCollaOptions(c.nom);
             const r = resultats[c.nom] || {};
             return (
@@ -133,7 +133,7 @@ export function ResultatsTab({ diades, apostes, onToast }) {
           })}
 
           {/* Especials */}
-          {(diadaSel.specialBets || []).length > 0 && (
+          {(diadaSel?.specialBets || []).length > 0 && (
             <>
               <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.78rem', textTransform: 'uppercase', color: 'var(--text-dim)', margin: '14px 0 8px' }}>Apostes Especials</div>
               {(diadaSel.specialBets || []).map(bet => (
@@ -160,7 +160,7 @@ export function ResultatsTab({ diades, apostes, onToast }) {
             <button onClick={desarDirecte} disabled={saving} style={{ flex: 1, padding: '10px', cursor: 'pointer', border: '1px solid var(--border)', borderRadius: 4, fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.9rem', background: 'var(--bg4)', color: 'var(--text)' }}>
               {saving ? '...' : '💾 DESAR EN DIRECTE'}
             </button>
-            {!diadaSel.resultatsFinalitzats ? (
+            {!diadaSel?.resultatsFinalitzats ? (
               <button onClick={publicarResultats} disabled={saving} style={{ flex: 1, padding: '10px', cursor: 'pointer', border: 'none', borderRadius: 4, fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.9rem', background: 'var(--green)', color: '#000' }}>
                 {saving ? '...' : '✅ FINALITZAR'}
               </button>
