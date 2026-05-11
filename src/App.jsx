@@ -142,6 +142,8 @@ export default function App() {
     if (!allBets.length) return;
     if (!selD) { showToast('⚠️ Selecciona una diada'); return; }
     if (!currentUser) { showToast("⚠️ Has d'iniciar sessió"); setLoginOpen(true); return; }
+    const diada = diades.find(d => d.id === selD);
+    if (diada?.tancada) { showToast('🔒 Les apostes estan tancades per aquesta diada'); return; }
 
     const combinedBase = allBets.reduce((a, b) => a * (b.odd || 1), 1);
     const combined = ordenat
@@ -150,7 +152,6 @@ export default function App() {
     const stakeVal = Math.min(stake, currentUser.points);
     if (stakeVal <= 0) { showToast('⚠️ No tens prou punts'); return; }
 
-    const diada = diades.find(d => d.id === selD);
     try {
       await addDoc(collection(db, 'apostes'), {
         diadaId: selD,
@@ -258,12 +259,13 @@ export default function App() {
             ) : diades.map(d => {
               const act = selD === d.id;
               return (
-                <div key={d.id} className="fade" style={{ background: act ? 'var(--bg4)' : 'var(--bg3)', border: `1px solid ${act ? 'var(--green)' : 'var(--border)'}`, borderRadius: 8, padding: 14, marginBottom: 10, transition: 'all .15s' }}>
+                <div key={d.id} className="fade" style={{ background: act ? 'var(--bg4)' : 'var(--bg3)', border: `1px solid ${d.tancada ? 'rgba(248,81,73,.3)' : act ? 'var(--green)' : 'var(--border)'}`, borderRadius: 8, padding: 14, marginBottom: 10, transition: 'all .15s' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         {d.name}
                         {d.resultatsFinalitzats && <span style={{ background: 'rgba(0,208,75,.15)', border: '1px solid rgba(0,208,75,.4)', borderRadius: 3, padding: '1px 6px', fontSize: '.65rem', color: 'var(--green)' }}>✓</span>}
+                        {d.tancada && <span style={{ background: 'rgba(248,81,73,.15)', border: '1px solid rgba(248,81,73,.4)', borderRadius: 3, padding: '1px 6px', fontSize: '.65rem', color: 'var(--red)' }}>🔒 Apostes tancades</span>}
                         {(d.specialBets || []).length > 0 && <span style={{ background: 'rgba(168,85,247,.15)', border: '1px solid rgba(168,85,247,.4)', borderRadius: 3, padding: '1px 6px', fontSize: '.65rem', color: 'var(--purple)' }}>✨ {d.specialBets.length} especials</span>}
                       </div>
                       <div style={{ fontSize: '.78rem', color: 'var(--text-dim)', marginTop: 3 }}>📅 {d.date || '—'} · 🏴 {(d.colles || []).length} colles</div>
@@ -273,8 +275,8 @@ export default function App() {
                         ))}
                       </div>
                     </div>
-                    <button onClick={() => selDiada(d.id)} style={diadaBtn(act)}>
-                      {act ? '✓ OBERTA' : '🎰 APOSTAR'}
+                    <button onClick={() => selDiada(d.id)} style={diadaBtn(act)} disabled={d.tancada && !act}>
+                      {act ? '✓ OBERTA' : d.tancada ? '🔒 TANCADA' : '🎰 APOSTAR'}
                     </button>
                   </div>
                 </div>
@@ -307,6 +309,7 @@ export default function App() {
               currentUser={currentUser}
               ordenat={ordenat}
               setOrdenat={setOrdenat}
+              diadaTancada={curD?.tancada || false}
             />
           </div>
         </div>

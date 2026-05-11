@@ -20,7 +20,16 @@ export function ResultatsTab({ diades, apostes, onToast }) {
     }
     setResultats(r);
     const re = {};
-    (diada?.specialBets || []).forEach(b => { re[b.id] = diada?.resultatsEspecials?.[b.id] ?? ''; });
+    (diada?.specialBets || []).forEach(b => {
+      if (b.perColla) {
+        (diada?.colles || []).forEach(c => {
+          const key = `${b.id}__${c.nom}`;
+          re[key] = diada?.resultatsEspecials?.[key] ?? '';
+        });
+      } else {
+        re[b.id] = diada?.resultatsEspecials?.[b.id] ?? '';
+      }
+    });
     setResultatsEspecials(re);
   };
 
@@ -57,7 +66,16 @@ export function ResultatsTab({ diades, apostes, onToast }) {
         if (ap.specialLines?.length) {
           const specResults = ap.specialLines.map(sl => {
             const res = resultatsEspecials[sl.betKey];
-            const ok = res !== undefined && res !== '' && res === sl.optionLabel;
+            if (res === undefined || res === '') return { ...sl, ok: false, fetVal: res };
+            // Suport per a apostes "o superior" (etiqueta amb "+")
+            let ok = false;
+            if (sl.optionLabel?.endsWith('+')) {
+              const threshold = parseFloat(sl.optionLabel);
+              const actual = parseFloat(res);
+              ok = !isNaN(threshold) && !isNaN(actual) && actual >= threshold;
+            } else {
+              ok = res === sl.optionLabel;
+            }
             return { ...sl, ok, fetVal: res };
           });
           if (!specResults.every(r => r.ok)) totsEncertats = false;
@@ -136,23 +154,62 @@ export function ResultatsTab({ diades, apostes, onToast }) {
           {(diadaSel?.specialBets || []).length > 0 && (
             <>
               <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.78rem', textTransform: 'uppercase', color: 'var(--text-dim)', margin: '14px 0 8px' }}>Apostes Especials</div>
-              {(diadaSel.specialBets || []).map(bet => (
-                <div key={bet.id} style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', marginBottom: 8 }}>
-                  <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.9rem', marginBottom: 8 }}>
-                    {bet.label} {bet.colla && <span style={{ color: 'var(--purple)', fontSize: '.8rem' }}>({bet.colla})</span>}
+              {(diadaSel.specialBets || []).map(bet => {
+                const isRange = bet.tipus === 'range';
+                const isPerColla = bet.perColla;
+
+                const renderInput = (betKey) => {
+                  const currentVal = resultatsEspecials[betKey];
+                  if (isRange) return (
+                    <div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <input type="number" placeholder="Valor real" value={currentVal || ''} onChange={e => updateRE(betKey, e.target.value)} style={{ width: 120 }} />
+                        {currentVal !== '' && currentVal !== undefined && <button onClick={() => updateRE(betKey, '')} style={{ cursor: 'pointer', border: '1px solid var(--border)', borderRadius: 4, padding: '3px 8px', background: 'transparent', color: 'var(--text-muted)', fontFamily: "'Barlow Condensed'", fontSize: '.75rem' }}>✕</button>}
+                      </div>
+                      <div style={{ marginTop: 6, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {(bet.options || []).map((opt, oi) => {
+                          const threshold = parseFloat(opt.label);
+                          const actual = parseFloat(currentVal);
+                          const guanya = currentVal !== '' && currentVal !== undefined && !isNaN(threshold) && !isNaN(actual) && (opt.label.endsWith('+') ? actual >= threshold : actual === threshold);
+                          return <div key={oi} style={{ background: guanya ? 'rgba(0,208,75,.15)' : 'var(--bg4)', border: `1px solid ${guanya ? 'var(--green)' : 'var(--border)'}`, borderRadius: 4, padding: '2px 7px', fontFamily: "'Barlow Condensed'", fontSize: '.75rem', color: guanya ? 'var(--green)' : 'var(--text-muted)' }}>{guanya ? '✓ ' : ''}{opt.label}</div>;
+                        })}
+                      </div>
+                    </div>
+                  );
+                  return (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button onClick={() => updateRE(betKey, '')} style={{ cursor: 'pointer', border: `1px solid ${currentVal === '' ? 'var(--text-muted)' : 'var(--border)'}`, borderRadius: 4, padding: '4px 10px', background: 'var(--bg4)', color: 'var(--text-muted)', fontFamily: "'Barlow Condensed'", fontWeight: 600, fontSize: '.8rem' }}>— Pendent</button>
+                      {(bet.options || []).map((opt, oi) => (
+                        <button key={oi} onClick={() => updateRE(betKey, opt.label)} style={{ cursor: 'pointer', border: `1px solid ${currentVal === opt.label ? 'var(--green)' : 'var(--border)'}`, borderRadius: 4, padding: '4px 10px', background: currentVal === opt.label ? 'rgba(0,208,75,.15)' : 'var(--bg4)', color: currentVal === opt.label ? 'var(--green)' : 'var(--text)', fontFamily: "'Barlow Condensed'", fontWeight: 600, fontSize: '.8rem' }}>{opt.label}</button>
+                      ))}
+                    </div>
+                  );
+                };
+
+                return (
+                  <div key={bet.id} style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', marginBottom: 8 }}>
+                    <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.9rem', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {bet.label} {bet.colla && <span style={{ color: 'var(--purple)', fontSize: '.8rem' }}>({bet.colla})</span>}
+                      <span style={{ fontSize: '.65rem', background: isRange ? 'rgba(26,140,255,.15)' : 'rgba(0,208,75,.1)', color: isRange ? 'var(--accent)' : 'var(--green)', border: `1px solid ${isRange ? 'rgba(26,140,255,.3)' : 'rgba(0,208,75,.3)'}`, borderRadius: 3, padding: '1px 6px' }}>{isRange ? 'RANG' : 'SÍ/NO'}</span>
+                      {isPerColla && <span style={{ fontSize: '.65rem', background: 'rgba(168,85,247,.15)', color: 'var(--purple)', border: '1px solid rgba(168,85,247,.3)', borderRadius: 3, padding: '1px 6px' }}>PER COLLA</span>}
+                    </div>
+                    {isRange && !isPerColla && <div style={{ fontSize: '.7rem', color: 'var(--text-dim)', marginBottom: 8, fontFamily: "'Barlow Condensed'" }}>Introdueix el valor real. El sistema calcularà quins apostadors guanyen.</div>}
+                    {isPerColla ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {(diadaSel?.colles || []).map(c => {
+                          const betKey = `${bet.id}__${c.nom}`;
+                          return (
+                            <div key={c.nom} style={{ background: 'var(--bg4)', border: '1px solid var(--border)', borderRadius: 4, padding: '8px 10px' }}>
+                              <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.8rem', color: 'var(--text-dim)', marginBottom: 6 }}>🏴 {c.nom}</div>
+                              {renderInput(betKey)}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : renderInput(bet.id)}
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <button onClick={() => updateRE(bet.id, '')} style={{ cursor: 'pointer', border: `1px solid ${resultatsEspecials[bet.id] === '' ? 'var(--text-muted)' : 'var(--border)'}`, borderRadius: 4, padding: '4px 10px', background: 'var(--bg4)', color: 'var(--text-muted)', fontFamily: "'Barlow Condensed'", fontWeight: 600, fontSize: '.8rem' }}>
-                      — Pendent
-                    </button>
-                    {(bet.options || []).map((opt, oi) => (
-                      <button key={oi} onClick={() => updateRE(bet.id, opt.label)} style={{ cursor: 'pointer', border: `1px solid ${resultatsEspecials[bet.id] === opt.label ? 'var(--green)' : 'var(--border)'}`, borderRadius: 4, padding: '4px 10px', background: resultatsEspecials[bet.id] === opt.label ? 'rgba(0,208,75,.15)' : 'var(--bg4)', color: resultatsEspecials[bet.id] === opt.label ? 'var(--green)' : 'var(--text)', fontFamily: "'Barlow Condensed'", fontWeight: 600, fontSize: '.8rem' }}>
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </>
           )}
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { collection, addDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, deleteDoc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { COLLES } from '../constants';
 import { calcOdd, lvlKeyToNum, lvlNumToColor, lvlNumToLabel, getCollaOptions } from '../utils';
@@ -52,6 +52,28 @@ export function AdminModal({ open, onClose, diades, houseMarg, setHouseMarg, onT
     if (!confirm(`Eliminar "${name}"?`)) return;
     try { await deleteDoc(doc(db, 'diades', id)); onToast('🗑️ Eliminada'); }
     catch (e) { onToast('❌ ' + e.message); }
+  };
+
+  const toggleTancada = async (d) => {
+    const nouEstat = !d.tancada;
+    try {
+      await updateDoc(doc(db, 'diades', d.id), { tancada: nouEstat });
+      onToast(nouEstat ? '🔒 Diada tancada (apostes desactivades)' : '🔓 Diada oberta (apostes activades)');
+    } catch (e) { onToast('❌ ' + e.message); }
+  };
+
+  const grantPoints = async (d) => {
+    if (!confirm(`Atorgar 100 punts extra a tots els usuaris per la diada "${d.name}"?`)) return;
+    try {
+      const { getDocs, collection: col } = await import('firebase/firestore');
+      const snap = await getDocs(col(db, 'usuaris'));
+      const batch = writeBatch(db);
+      snap.docs.forEach(uDoc => {
+        batch.update(uDoc.ref, { points: (uDoc.data().points || 0) + 100 });
+      });
+      await batch.commit();
+      onToast(`🎁 100 punts atorgats a ${snap.docs.length} usuaris!`);
+    } catch (e) { onToast('❌ ' + e.message); }
   };
 
   const previewLvlN = cfg['_preview']?.nivell ?? 2;
@@ -156,20 +178,31 @@ export function AdminModal({ open, onClose, diades, houseMarg, setHouseMarg, onT
                 {!diades.length
                   ? <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>Cap diada</div>
                   : diades.map(d => (
-                    <div key={d.id} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6, padding: '11px 13px', marginBottom: 7 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          {d.name}
-                          {d.resultatsFinalitzats && <span style={{ background: 'rgba(0,208,75,.15)', border: '1px solid rgba(0,208,75,.4)', borderRadius: 3, padding: '1px 6px', fontSize: '.65rem', color: 'var(--green)' }}>✓ RESULTATS</span>}
+                    <div key={d.id} style={{ background: 'var(--bg3)', border: `1px solid ${d.tancada ? 'rgba(248,81,73,.3)' : 'var(--border)'}`, borderRadius: 6, padding: '11px 13px', marginBottom: 7 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            {d.name}
+                            {d.resultatsFinalitzats && <span style={{ background: 'rgba(0,208,75,.15)', border: '1px solid rgba(0,208,75,.4)', borderRadius: 3, padding: '1px 6px', fontSize: '.65rem', color: 'var(--green)' }}>✓ RESULTATS</span>}
+                            {d.tancada && <span style={{ background: 'rgba(248,81,73,.15)', border: '1px solid rgba(248,81,73,.4)', borderRadius: 3, padding: '1px 6px', fontSize: '.65rem', color: 'var(--red)' }}>🔒 TANCADA</span>}
+                          </div>
+                          <div style={{ fontSize: '.76rem', color: 'var(--text-dim)', marginTop: 2 }}>{d.date || '—'} · {(d.colles || []).length} colles · {(d.specialBets || []).length} especials</div>
+                          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 6 }}>
+                            {(d.colles || []).map(c => (
+                              <span key={c.nom} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 7px', fontSize: '.72rem', fontFamily: "'Barlow Condensed'", fontWeight: 600, color: 'var(--green)' }}>{c.nom}</span>
+                            ))}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '.76rem', color: 'var(--text-dim)', marginTop: 2 }}>{d.date || '—'} · {(d.colles || []).length} colles · {(d.specialBets || []).length} especials</div>
-                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 6 }}>
-                          {(d.colles || []).map(c => (
-                            <span key={c.nom} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 3, padding: '2px 7px', fontSize: '.72rem', fontFamily: "'Barlow Condensed'", fontWeight: 600, color: 'var(--green)' }}>{c.nom}</span>
-                          ))}
-                        </div>
+                        <button onClick={() => del(d.id, d.name)} style={{ cursor: 'pointer', border: 'none', borderRadius: 4, fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.8rem', padding: '5px 9px', background: 'var(--red)', color: '#fff', flexShrink: 0 }}>🗑</button>
                       </div>
-                      <button onClick={() => del(d.id, d.name)} style={{ cursor: 'pointer', border: 'none', borderRadius: 4, fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.8rem', padding: '5px 9px', background: 'var(--red)', color: '#fff', marginLeft: 10, flexShrink: 0 }}>🗑</button>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                        <button onClick={() => toggleTancada(d)} style={{ cursor: 'pointer', border: `1px solid ${d.tancada ? 'rgba(0,208,75,.4)' : 'rgba(248,81,73,.4)'}`, borderRadius: 4, fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.8rem', padding: '6px 14px', background: d.tancada ? 'rgba(0,208,75,.1)' : 'rgba(248,81,73,.1)', color: d.tancada ? 'var(--green)' : 'var(--red)' }}>
+                          {d.tancada ? '🔓 Obrir apostes' : '🔒 Tancar apostes'}
+                        </button>
+                        <button onClick={() => grantPoints(d)} style={{ cursor: 'pointer', border: '1px solid rgba(240,180,0,.4)', borderRadius: 4, fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: '.8rem', padding: '6px 14px', background: 'rgba(240,180,0,.1)', color: 'var(--gold)' }}>
+                          🎁 +100 punts a tothom
+                        </button>
+                      </div>
                     </div>
                   ))}
               </div>

@@ -1,6 +1,6 @@
 import { SLOT_NAMES } from '../constants';
 
-export function Betslip({ betslip, bsSpecial, onRemove, onRemoveSpecial, onPlace, stake, setStake, currentUser, ordenat, setOrdenat }) {
+export function Betslip({ betslip, bsSpecial, onRemove, onRemoveSpecial, onPlace, stake, setStake, currentUser, ordenat, setOrdenat, diadaTancada }) {
   const allBets = [
     ...betslip.map(b => ({ ...b, _type: 'castle' })),
     ...bsSpecial.map(b => ({ ...b, _type: 'special' })),
@@ -21,6 +21,11 @@ export function Betslip({ betslip, bsSpecial, onRemove, onRemoveSpecial, onPlace
       {!currentUser && (
         <div style={{ background: 'rgba(248,81,73,.08)', border: '1px solid rgba(248,81,73,.3)', borderRadius: 6, padding: '10px 14px', marginBottom: 12, fontSize: '.83rem', color: 'var(--red)', textAlign: 'center' }}>
           ⚠️ Inicia sessió per apostar
+        </div>
+      )}
+      {diadaTancada && (
+        <div style={{ background: 'rgba(248,81,73,.08)', border: '1px solid rgba(248,81,73,.3)', borderRadius: 6, padding: '10px 14px', marginBottom: 12, fontSize: '.83rem', color: 'var(--red)', textAlign: 'center' }}>
+          🔒 Les apostes estan tancades per la diada en curs
         </div>
       )}
       {currentUser && (
@@ -86,8 +91,8 @@ export function Betslip({ betslip, bsSpecial, onRemove, onRemoveSpecial, onPlace
             </div>
           </div>
 
-          <button onClick={onPlace} disabled={!currentUser} style={{ width: '100%', marginTop: 10, padding: 12, fontSize: '1rem', cursor: currentUser ? 'pointer' : 'not-allowed', border: 'none', borderRadius: 4, fontFamily: "'Barlow Condensed'", fontWeight: 700, background: currentUser ? 'var(--green)' : 'var(--bg3)', color: currentUser ? '#000' : 'var(--text-muted)', letterSpacing: .5, opacity: currentUser ? 1 : 0.6 }}>
-            APOSTAR ARA
+          <button onClick={onPlace} disabled={!currentUser || diadaTancada} style={{ width: '100%', marginTop: 10, padding: 12, fontSize: '1rem', cursor: (currentUser && !diadaTancada) ? 'pointer' : 'not-allowed', border: 'none', borderRadius: 4, fontFamily: "'Barlow Condensed'", fontWeight: 700, background: (currentUser && !diadaTancada) ? 'var(--green)' : 'var(--bg3)', color: (currentUser && !diadaTancada) ? '#000' : 'var(--text-muted)', letterSpacing: .5, opacity: (currentUser && !diadaTancada) ? 1 : 0.6 }}>
+            {diadaTancada ? '🔒 APOSTES TANCADES' : 'APOSTAR ARA'}
           </button>
         </>
       )}
